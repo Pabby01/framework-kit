@@ -2,6 +2,7 @@ import type { JSX, ReactNode } from 'react';
 import { useMemo, useRef } from 'react';
 import { type Cache, SWRConfig, type SWRConfiguration } from 'swr';
 
+import { QuerySuspenseContext } from './querySuspenseContext';
 import { useClientStore } from './useClientStore';
 
 const createCache = (): Cache => new Map<string, unknown>() as Cache;
@@ -18,12 +19,14 @@ type SolanaQueryProviderProps = Readonly<{
 	children: ReactNode;
 	config?: SWRConfiguration;
 	resetOnClusterChange?: boolean;
+	suspense?: boolean;
 }>;
 
 export function SolanaQueryProvider({
 	children,
 	config,
 	resetOnClusterChange = true,
+	suspense,
 }: SolanaQueryProviderProps): JSX.Element {
 	const cluster = useClientStore((state) => state.cluster);
 	const cacheRegistryRef = useRef<Map<string, Cache>>(new Map());
@@ -52,8 +55,15 @@ export function SolanaQueryProvider({
 		if (!config?.provider) {
 			base.provider = () => cache;
 		}
+		if (base.suspense === undefined && suspense !== undefined) {
+			base.suspense = suspense;
+		}
 		return base;
-	}, [cache, config]);
+	}, [cache, config, suspense]);
 
-	return <SWRConfig value={value}>{children}</SWRConfig>;
+	return (
+		<QuerySuspenseContext.Provider value={suspense}>
+			<SWRConfig value={value}>{children}</SWRConfig>
+		</QuerySuspenseContext.Provider>
+	);
 }
