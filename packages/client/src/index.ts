@@ -7,6 +7,12 @@ export {
 	type SolTransferInput,
 } from './controllers/solTransferController';
 export {
+	createSplTransferController,
+	type SplTransferController,
+	type SplTransferControllerConfig,
+	type SplTransferInput,
+} from './controllers/splTransferController';
+export {
 	createSolTransferHelper,
 	type SolTransferHelper,
 	type SolTransferPrepareConfig,
@@ -21,11 +27,14 @@ export {
 } from './features/spl';
 export {
 	createTransactionHelper,
+	createTransactionRecipe,
 	type TransactionHelper,
 	type TransactionInstructionInput,
 	type TransactionPrepareAndSendRequest,
 	type TransactionPrepared,
 	type TransactionPrepareRequest,
+	type TransactionRecipe,
+	type TransactionRecipeContext,
 	type TransactionSendOptions,
 	type TransactionSignOptions,
 } from './features/transactions';

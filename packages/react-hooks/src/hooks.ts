@@ -8,6 +8,7 @@ import {
 	createAsyncState,
 	createInitialAsyncState,
 	createSolTransferController,
+	createSplTransferController,
 	createTransactionPoolController,
 	deriveConfirmationStatus,
 	getWalletStandardConnectors,
@@ -22,7 +23,8 @@ import {
 	type SplTokenBalance,
 	type SplTokenHelper,
 	type SplTokenHelperConfig,
-	type SplTransferPrepareConfig,
+	type SplTransferController,
+	type SplTransferInput,
 	type TransactionHelper,
 	type TransactionInstructionInput,
 	type TransactionInstructionList,
@@ -215,11 +217,6 @@ export function useSolTransfer(): Readonly<{
 
 type SplTokenBalanceResult = SplTokenBalance;
 type SplTransferSignature = UnwrapPromise<ReturnType<SplTokenHelper['sendTransfer']>>;
-type SplTransferInput = Omit<SplTransferPrepareConfig, 'authority' | 'sourceOwner'> & {
-	authority?: SplTransferPrepareConfig['authority'];
-	sourceOwner?: SplTransferPrepareConfig['sourceOwner'];
-};
-
 type UseSplTokenOptions = Readonly<{
 	commitment?: Commitment;
 	config?: Omit<SplTokenHelperConfig, 'commitment' | 'mint'>;
@@ -281,8 +278,30 @@ export function useSplToken(
 		revalidateOnFocus: options.revalidateOnFocus ?? false,
 	});
 
-	const [sendState, setSendState] = useState<AsyncState<SplTransferSignature>>(() =>
-		createInitialAsyncState<SplTransferSignature>(),
+	const sessionRef = useRef(session);
+	useEffect(() => {
+		sessionRef.current = session;
+	}, [session]);
+
+	const ownerRef = useRef(owner);
+	useEffect(() => {
+		ownerRef.current = owner;
+	}, [owner]);
+
+	const controller = useMemo<SplTransferController>(
+		() =>
+			createSplTransferController({
+				authorityProvider: () => sessionRef.current ?? undefined,
+				helper,
+				sourceOwnerProvider: () => ownerRef.current ?? undefined,
+			}),
+		[helper],
+	);
+
+	const sendState = useSyncExternalStore<AsyncState<SplTransferSignature>>(
+		controller.subscribe,
+		controller.getState,
+		controller.getState,
 	);
 
 	const refresh = useCallback(() => {
@@ -294,41 +313,18 @@ export function useSplToken(
 
 	const send = useCallback(
 		async (config: SplTransferInput, sendOptions?: SolTransferSendOptions) => {
-			const { authority: authorityOverride, sourceOwner: sourceOwnerOverride, ...rest } = config;
-			const authority = authorityOverride ?? session;
-			const sourceOwner = sourceOwnerOverride ?? owner;
-			if (!authority) {
-				throw new Error('Connect a wallet or supply an `authority` before sending SPL tokens.');
+			const signature = await controller.send(config, sendOptions);
+			if (owner) {
+				await mutate(() => helper.fetchBalance(owner, options.commitment), { revalidate: false });
 			}
-			if (!sourceOwner) {
-				throw new Error('Unable to resolve a source owner for the SPL token transfer.');
-			}
-			setSendState({ status: 'loading' });
-			try {
-				const signature = await helper.sendTransfer(
-					{
-						...rest,
-						authority,
-						sourceOwner,
-					},
-					sendOptions,
-				);
-				setSendState({ data: signature, status: 'success' });
-				if (owner) {
-					await mutate(() => helper.fetchBalance(owner, options.commitment), { revalidate: false });
-				}
-				return signature;
-			} catch (sendError) {
-				setSendState({ error: sendError, status: 'error' });
-				throw sendError;
-			}
+			return signature;
 		},
-		[helper, mutate, options.commitment, owner, session],
+		[controller, helper, mutate, options.commitment, owner],
 	);
 
 	const resetSend = useCallback(() => {
-		setSendState(() => createInitialAsyncState<SplTransferSignature>());
-	}, []);
+		controller.reset();
+	}, [controller]);
 
 	const status: 'disconnected' | 'error' | 'loading' | 'ready' =
 		owner === null ? 'disconnected' : error ? 'error' : isLoading && !data ? 'loading' : 'ready';
