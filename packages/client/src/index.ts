@@ -31,6 +31,14 @@ export {
 	type SplTransferInput,
 } from './controllers/splTransferController';
 export {
+	createStakeController,
+	type StakeController,
+	type StakeControllerConfig,
+	type StakeInput,
+	type UnstakeInput,
+	type WithdrawInput,
+} from './controllers/stakeController';
+export {
 	createSolTransferHelper,
 	type SolTransferHelper,
 	type SolTransferPrepareConfig,
@@ -43,6 +51,17 @@ export {
 	type SplTokenHelperConfig,
 	type SplTransferPrepareConfig,
 } from './features/spl';
+export {
+	createStakeHelper,
+	type StakeAccount,
+	type StakeHelper,
+	type StakePrepareConfig,
+	type StakeSendOptions,
+	type UnstakePrepareConfig,
+	type UnstakeSendOptions,
+	type WithdrawPrepareConfig,
+	type WithdrawSendOptions,
+} from './features/stake';
 export {
 	createTransactionHelper,
 	createTransactionRecipe,
